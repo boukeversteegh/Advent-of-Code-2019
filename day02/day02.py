@@ -6,22 +6,8 @@
 #
 # +4
 
-
 input_program = [int(code) for code in open("input.txt")
   .readlines()[0].strip().split(',')]
-
-instruction_pointer = 0
-positions = []
-
-
-def load_program():
-  global positions, instruction_pointer
-  positions.clear()
-  positions.extend(input_program)
-  positions[1] = 12
-  positions[2] = 2
-  instruction_pointer = 0
-
 
 # Example
 # P0 = [1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50]
@@ -30,67 +16,85 @@ P2 = [2, 3, 0, 3, 99]
 P3 = [2, 4, 4, 5, 99, 0]
 P4 = [1, 1, 1, 4, 99, 5, 6, 0, 99]
 
-def get_parameters(position):
-  global arg_c, val_a, val_b
-  arg_a = position + 1
-  arg_b = position + 2
-  arg_c = position + 3
-  pos_a = positions[arg_a]
-  pos_b = positions[arg_b]
-  pos_c = positions[arg_c]
-
-  val_a = positions[pos_a]
-  val_b = positions[pos_b]
-  return val_a, val_b, pos_c
-
 def print_positions(in_positions):
   print(",".join([str(code) for code in in_positions]))
 
 
-print_positions(positions)
+class IntCodeComputer:
+  def __init__(self):
+    self.instruction_pointer = 0
+    self.positions = [99]
+    self.reset()
 
+  def reset(self):
+    self.instruction_pointer = 0
+    self.positions = [99]
 
-def run_program():
-  global val_a, val_b, arg_c, instruction_pointer
-  while True:
-    opcode = positions[instruction_pointer]
+  def load(self, input_program):
+    self.positions.clear()
+    self.positions.extend(input_program)
 
-    if opcode == 1:
-      # add A + B -> C
-      (val_a, val_b, arg_c) = get_parameters(instruction_pointer)
+  def get_parameters(self, position):
+    pos_a = self.positions[position + 1]
+    pos_b = self.positions[position + 2]
+    pos_c = self.positions[position + 3]
 
-      val_c = val_a + val_b
-      positions[arg_c] = val_c
-      instruction_pointer += 4
+    val_a = self.positions[pos_a]
+    val_b = self.positions[pos_b]
+    return val_a, val_b, pos_c
 
-    if opcode == 2:
-      # multiply A * B -> C
-      (val_a, val_b, arg_c) = get_parameters(instruction_pointer)
+  def run_program(self):
+    if self.positions[0] not in [1, 2, 99]:
+      raise Exception("Program does not start with instruction: %s" % self.positions)
 
-      val_c = val_a * val_b
-      positions[arg_c] = val_c
-      instruction_pointer += 4
+    while True:
+      op_code = self.positions[self.instruction_pointer]
 
-    if opcode == 99:
-      # instruction_pointer += 1
-      break
+      if op_code == 1:
+        # add A + B -> C
+        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer)
 
-    print(instruction_pointer)
-    # print_positions(positions)
+        val_c = val_a + val_b
+        self.positions[arg_c] = val_c
+        self.instruction_pointer += 4
+
+      if op_code == 2:
+        # multiply A * B -> C
+        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer)
+
+        val_c = val_a * val_b
+        self.positions[arg_c] = val_c
+        self.instruction_pointer += 4
+
+      if op_code == 99:
+        # instruction_pointer += 1
+        break
+
+      print(self.instruction_pointer)
+
+  def write(self, position, value):
+    self.positions[position] = value
+
+  def result(self):
+    return self.positions[0]
 
 
 target_output = 19690720
 
-
 def part2():
+  computer = IntCodeComputer()
   for noun in range(0, 100):
     for verb in range(0, 100):
-      load_program()
-      positions[1] = noun
-      positions[2] = verb
-      print_positions(positions)
-      run_program()
-      result = positions[0]
+      computer.reset()
+      computer.load(input_program)
+      computer.write(1, noun)
+      computer.write(2, verb)
+
+      print_positions(computer.positions)
+
+      computer.run_program()
+
+      result = computer.result()
 
       # print("VERB: %s/100" % verb)
 
@@ -99,7 +103,7 @@ def part2():
         return
     # print("NOUN: %s/100" % noun)
 
-  print_positions(positions)
+  print_positions(computer.positions)
 
 
 part2()
