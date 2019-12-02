@@ -6,6 +6,10 @@
 #
 # +4
 
+OP_HALT = 99
+OP_MUL = 2
+OP_ADD = 1
+
 input_program = [int(code) for code in open("input.txt")
   .readlines()[0].strip().split(',')]
 
@@ -23,12 +27,12 @@ def print_positions(in_positions):
 class IntCodeComputer:
   def __init__(self):
     self.instruction_pointer = 0
-    self.positions = [99]
+    self.positions = [OP_HALT]
     self.reset()
 
   def reset(self):
     self.instruction_pointer = 0
-    self.positions = [99]
+    self.positions = [OP_HALT]
 
   def load(self, input_program):
     self.positions.clear()
@@ -44,31 +48,28 @@ class IntCodeComputer:
     return val_a, val_b, pos_c
 
   def run_program(self):
-    if self.positions[0] not in [1, 2, 99]:
+    if self.positions[0] not in [OP_ADD, OP_MUL, OP_HALT]:
       raise Exception("Program does not start with instruction: %s" % self.positions)
 
     while True:
       op_code = self.positions[self.instruction_pointer]
 
-      if op_code == 1:
-        # add A + B -> C
+      if op_code == OP_ADD:  # add A + B -> C
         (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer)
 
         val_c = val_a + val_b
         self.positions[arg_c] = val_c
-        self.instruction_pointer += 4
 
-      if op_code == 2:
-        # multiply A * B -> C
+      elif op_code == OP_MUL:  # multiply A * B -> C
         (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer)
 
         val_c = val_a * val_b
         self.positions[arg_c] = val_c
-        self.instruction_pointer += 4
 
-      if op_code == 99:
-        # instruction_pointer += 1
+      elif op_code == OP_HALT:
         break
+
+      self.instruction_pointer += 4
 
       print(self.instruction_pointer)
 
