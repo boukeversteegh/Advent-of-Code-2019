@@ -20,17 +20,13 @@ class Intersector:
       section_direction = section[0]
       section_dist = int(section[1:])
 
-      section_dx = 0
-      section_dy = 0
-
-      if section_direction == 'U':
-        section_dy -= 1
-      if section_direction == 'D':
-        section_dy += 1
-      if section_direction == 'L':
-        section_dx -= 1
-      if section_direction == 'R':
-        section_dx += 1
+      directions = {
+        'U': (0, -1),
+        'D': (0, 1),
+        'L': (-1, 0),
+        'R': (1, 0),
+      }
+      section_dx, section_dy = directions[section_direction]
 
       for i in range(0, section_dist):
         x += section_dx
