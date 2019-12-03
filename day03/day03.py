@@ -6,11 +6,11 @@ raw = open('input.txt').readlines()
 # raw = ['R75,D30,R83,U83,L12,D49,R71,U7,L72',
 #        'U62,R66,U55,R34,D71,R55,D58,R83']
 
-line_times = [line.strip() for line in raw]
+lines = [line.strip() for line in raw]
 
 grid = collections.defaultdict(lambda: collections.defaultdict(lambda: {}))
 
-for line_index, line in enumerate(line_times):
+for line_index, line in enumerate(lines):
   sections = line.split(',')
 
   x, y = (0, 0)
@@ -41,24 +41,46 @@ for line_index, line in enumerate(line_times):
       if line_index not in grid[y][x].keys():
         grid[y][x][line_index] = line_steps_total
 
-min_x = 0
-min_y = 0
-min_distance = None
-min_time = None
 
-for y, row in grid.items():
-  for x, line_times in row.items():
-    if len(line_times.items()) > 1:
-      distance = abs(x) + abs(y)
-      time = sum(line_times.values())
-      if min_time is None or (time < min_time):
-        min_time = time
-        min_x = x
-        min_y = y
+def part1():
+  min_x = 0
+  min_y = 0
+  min_distance = None
 
-print(((min_x, min_y), min_time))
+  for y, row in grid.items():
+    for x, lines in row.items():
+      if len(lines.items()) > 1:
+        distance = abs(x) + abs(y)
+        if min_distance is None or (distance < min_distance):
+          print("Intersection at %s" % (((x, y), distance),))
+          min_x = x
+          min_y = y
+          min_distance = distance
+
+  print(((min_x, min_y), min_distance))
 
 
+def part2():
+  min_x = 0
+  min_y = 0
+  min_distance = None
+  min_time = None
+  for y, row in grid.items():
+    for x, line_times in row.items():
+      if len(line_times.items()) > 1:
+        distance = abs(x) + abs(y)
+        time = sum(line_times.values())
+        if min_time is None or (time < min_time):
+          min_time = time
+          min_x = x
+          min_y = y
+  print(((min_x, min_y), min_time))
+
+
+part1()
+part2()
 
 # 2923 WRONG
 # 399  RIGHT
+
+# 15678 PART TWO CORRECT
