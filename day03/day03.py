@@ -1,43 +1,44 @@
 import collections
 
-class Intersector:
 
+class Intersector:
   def __init__(self) -> None:
     super().__init__()
 
     self.grid = collections.defaultdict(lambda: collections.defaultdict(lambda: {}))
 
-  def solve(self, lines):
-    for line_index, line in enumerate(lines):
+  def trace_wires(self, lines):
+    for wire_index, line in enumerate(lines):
       sections = line.split(',')
 
-      x, y = (0, 0)
-      line_steps_total = 0
-      for section in sections:
-        section_direction = section[0]
-        section_dist = int(section[1:])
+      self.trace_wire(sections, wire_index)
 
-        section_dx = 0
-        section_dy = 0
+  def trace_wire(self, sections, wire_index):
+    x, y = (0, 0)
+    line_steps_total = 0
+    for section in sections:
+      section_direction = section[0]
+      section_dist = int(section[1:])
 
-        if section_direction == 'U':
-          section_dy -= 1
-        if section_direction == 'D':
-          section_dy += 1
-        if section_direction == 'L':
-          section_dx -= 1
-        if section_direction == 'R':
-          section_dx += 1
+      section_dx = 0
+      section_dy = 0
 
-        section_tx, section_ty = (x + section_dx, y + section_dy)
+      if section_direction == 'U':
+        section_dy -= 1
+      if section_direction == 'D':
+        section_dy += 1
+      if section_direction == 'L':
+        section_dx -= 1
+      if section_direction == 'R':
+        section_dx += 1
 
-        for i in range(0, section_dist):
-          x += section_dx
-          y += section_dy
-          line_steps_total += 1
+      for i in range(0, section_dist):
+        x += section_dx
+        y += section_dy
+        line_steps_total += 1
 
-          if line_index not in self.grid[y][x].keys():
-            self.grid[y][x][line_index] = line_steps_total
+        if wire_index not in self.grid[y][x].keys():
+          self.grid[y][x][wire_index] = line_steps_total
 
   def part1(self):
     min_x = 0
@@ -80,7 +81,7 @@ def main():
 
   lines = [line.strip() for line in raw]
   intersector = Intersector()
-  intersector.solve(lines)
+  intersector.trace_wires(lines)
   intersector.part1()
   intersector.part2()
 
