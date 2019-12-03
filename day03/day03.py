@@ -1,14 +1,5 @@
 import collections
 
-raw = open('input.txt').readlines()
-
-# raw = ['R8,U5,L5,D3', 'U7,R6,D4,L4']
-# raw = ['R75,D30,R83,U83,L12,D49,R71,U7,L72',
-#        'U62,R66,U55,R34,D71,R55,D58,R83']
-
-lines = [line.strip() for line in raw]
-
-
 class Intersector:
 
   def __init__(self) -> None:
@@ -16,7 +7,7 @@ class Intersector:
 
     self.grid = collections.defaultdict(lambda: collections.defaultdict(lambda: {}))
 
-  def solve(self):
+  def solve(self, lines):
     for line_index, line in enumerate(lines):
       sections = line.split(',')
 
@@ -80,10 +71,22 @@ class Intersector:
     print(((min_x, min_y), min_time))
 
 
-intersector = Intersector()
-intersector.solve()
-intersector.part1()
-intersector.part2()
+def main():
+  raw = open('input.txt').readlines()
+
+  # raw = ['R8,U5,L5,D3', 'U7,R6,D4,L4']
+  # raw = ['R75,D30,R83,U83,L12,D49,R71,U7,L72',
+  #        'U62,R66,U55,R34,D71,R55,D58,R83']
+
+  lines = [line.strip() for line in raw]
+  intersector = Intersector()
+  intersector.solve(lines)
+  intersector.part1()
+  intersector.part2()
+
+
+if __name__ == '__main__':
+  main()
 
 # 2923 WRONG
 # 399  RIGHT
