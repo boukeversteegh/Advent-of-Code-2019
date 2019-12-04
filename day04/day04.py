@@ -1,11 +1,11 @@
 import unittest
 
 
-class Day4:
+class PasswordSolver:
   def __init__(self):
     pass
 
-  def part1(self):
+  def count_valid_passwords(self):
     valid_count = 0
     for password in range(240298, 784956 + 1):
       if self.is_valid(str(password)):
@@ -13,6 +13,46 @@ class Day4:
 
     return valid_count
 
+
+class PasswordSolverPart1(PasswordSolver):
+  def is_valid(self, password):
+    password = str(password)
+    if len(password) != 6:
+      return False
+
+    have_double = False
+    is_monotonous = True
+    current_sequence = ''
+    sequence_length = 0
+
+    for p in range(0, 6):
+      digit = password[p]
+
+      if digit != current_sequence:
+        if sequence_length >= 2:
+          have_double = True
+
+        current_sequence = digit
+        sequence_length = 1
+      else:
+        sequence_length += 1
+
+      if p < 5 and digit > password[p + 1]:
+        is_monotonous = False
+
+    if sequence_length >= 2:
+      have_double = True
+
+    if not have_double:
+      return False
+
+    if not is_monotonous:
+      return False
+
+    return True
+
+
+class PasswordSolverPart2(PasswordSolver):
   def is_valid(self, password):
     password = str(password)
     if len(password) != 6:
@@ -50,13 +90,22 @@ class Day4:
     return True
 
 
-class Tests(unittest.TestCase):
-
-  def __init__(self, methodName: str = ...) -> None:
-    super().__init__(methodName)
-    self.day4 = Day4()
-
+class Examples(unittest.TestCase):
   def test_examples_part1(self):
+    self.day4 = PasswordSolverPart1()
+    self.assertTrue(self.day4.is_valid('111111'))
+    self.assertTrue(self.day4.is_valid('456779'))
+    self.assertTrue(self.day4.is_valid('000000'))
+    self.assertFalse(self.day4.is_valid('223450'))
+    self.assertFalse(self.day4.is_valid(''))
+    self.assertFalse(self.day4.is_valid('123'))
+    self.assertFalse(self.day4.is_valid('12345'))
+    self.assertFalse(self.day4.is_valid('1234567'))
+    self.assertFalse(self.day4.is_valid('123789'))
+    self.assertFalse(self.day4.is_valid('338879'))
+
+  def test_examples_part2A(self):
+    self.day4 = PasswordSolverPart2()
     self.assertFalse(self.day4.is_valid('111111'))
     self.assertTrue(self.day4.is_valid('456779'))
     self.assertFalse(self.day4.is_valid('000000'))
@@ -68,7 +117,8 @@ class Tests(unittest.TestCase):
     self.assertFalse(self.day4.is_valid('123789'))
     self.assertFalse(self.day4.is_valid('338879'))
 
-  def test_examples_part2(self):
+  def test_examples_part2B(self):
+    self.day4 = PasswordSolverPart2()
     valid = [
       '112233',
       '111122',
@@ -86,9 +136,16 @@ class Tests(unittest.TestCase):
     for i in invalid:
       self.assertFalse(self.day4.is_valid(i), msg="%s should be INVALID" % v)
 
+
+class Solutions(unittest.TestCase):
   def test_part1(self):
-    day4 = Day4()
-    valid_count = day4.part1()
+    day4 = PasswordSolverPart1()
+    valid_count = day4.count_valid_passwords()
+    print(valid_count)
+
+  def test_part2(self):
+    day4 = PasswordSolverPart2()
+    valid_count = day4.count_valid_passwords()
     print(valid_count)
 
 
@@ -96,12 +153,4 @@ class Tests(unittest.TestCase):
 # Part 2 648 BAD
 # Part 2 454 BAD
 # Part 2 510 BAD
-
-def main():
-  day4 = Day4()
-  valid_count = day4.part2()
-  print(valid_count)
-
-
-if __name__ == '__main__':
-  main()
+# Part 2 748
