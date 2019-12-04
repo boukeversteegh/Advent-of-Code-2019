@@ -1,6 +1,5 @@
 import unittest
 
-
 class PasswordSolver:
   def __init__(self):
     pass
@@ -13,32 +12,25 @@ class PasswordSolver:
 
     return valid_count
 
-
 class PasswordSolverPart1(PasswordSolver):
   def is_valid(self, password):
     password = str(password)
+
     if len(password) != 6:
       return False
 
     have_double = False
-    is_monotonous = True
-    current_sequence = ''
+    is_monotonic = True
     sequence_length = 0
 
     for p in range(0, 6):
       digit = password[p]
 
-      if digit != current_sequence:
-        if sequence_length >= 2:
-          have_double = True
-
-        current_sequence = digit
-        sequence_length = 1
-      else:
-        sequence_length += 1
+      if p < 5 and digit == password[p + 1]:
+        have_double = True
 
       if p < 5 and digit > password[p + 1]:
-        is_monotonous = False
+        is_monotonic = False
 
     if sequence_length >= 2:
       have_double = True
@@ -46,7 +38,7 @@ class PasswordSolverPart1(PasswordSolver):
     if not have_double:
       return False
 
-    if not is_monotonous:
+    if not is_monotonic:
       return False
 
     return True
