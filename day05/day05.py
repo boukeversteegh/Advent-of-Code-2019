@@ -22,14 +22,14 @@ class IntCodeComputer:
   def __init__(self):
     self.instruction_pointer = 0
     self.positions = [OP_HALT]
-    self._input = None
-    self.output = None
+    self.inputs = []
+    self.output = []
 
   def reset(self):
     self.instruction_pointer = 0
     self.positions = [OP_HALT]
-    self._input = None
-    self.output = None
+    self.inputs = []
+    self.output = []
 
   def load(self, input_program):
     self.positions.clear()
@@ -69,6 +69,8 @@ class IntCodeComputer:
       instruction = self.positions[self.instruction_pointer]
       (op_code, parameter_modes) = self.parse_instruction(instruction)
 
+      parameter_count = len(parameter_modes)
+
       if op_code == OP_ADD:  # add A + B -> C
         (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer, parameter_modes)
 
@@ -85,10 +87,21 @@ class IntCodeComputer:
         val_c = val_a * val_b
         self.positions[output_position] = val_c
 
+      elif op_code == OP_IN:
+        _input = self.inputs.pop(0)
+        if _input is None:
+          raise ValueError("No more input!")
+
+        output_position = self.positions[self.instruction_pointer + 1]
+        self.positions[output_position] = _input
+      elif op_code == OP_OUT:
+        value = self.positions[self.positions[self.instruction_pointer + 1]]
+        self.output.append(value)
+
       elif op_code == OP_HALT:
         break
 
-      self.instruction_pointer += 4
+      self.instruction_pointer += 1 + parameter_count
 
       print(self.instruction_pointer)
 
@@ -99,7 +112,7 @@ class IntCodeComputer:
     return self.positions[0]
 
   def input(self, value):
-    self._input = value
+    self.inputs.append(value)
 
 
 class Day5Part1(IntCodeComputer):
@@ -154,10 +167,24 @@ class Examples(unittest.TestCase):
     computer.run_program()
     self.assertEqual(5, computer.positions[0])
 
+  def test_input(self):
+    computer = IntCodeComputer()
+    computer.load([OP_IN, 0, 99, 99, 99])
+    computer.input(33)
+    computer.run_program()
+    self.assertEqual(33, computer.positions[0])
+
+  def test_output(self):
+    computer = IntCodeComputer()
+    computer.load([OP_OUT, 6, 99, 99, 99, 99, 42])
+    computer.run_program()
+    self.assertEqual([42], computer.output)
+
   def test_identity(self):
     computer = IntCodeComputer()
-    computer.load([3, 0, 4, 0, 99])
+    computer.load([OP_IN, 0, OP_OUT, 0, 99])
     computer.input(33)
+    computer.run_program()
     self.assertEqual([33], computer.output)
 
   def test_parse_mode_add(self):
