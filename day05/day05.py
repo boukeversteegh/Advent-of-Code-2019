@@ -35,19 +35,18 @@ class IntCodeComputer:
     self.positions.clear()
     self.positions.extend(input_program)
 
-  def get_parameters(self, position, nr):
-    pos_a = self.positions[position + 1]
-    pos_b = self.positions[position + 2]
-    if nr == 3:
-      pos_c = self.positions[position + 3]
+  def get_parameters(self, instruction_pointer, modes):
+    parameters = []
+    for (position_index, mode) in enumerate(modes):
+      if mode == MODE_IMM:
+        parameter = self.positions[instruction_pointer + position_index + 1]
+      else:
+        parameter = self.positions[self.positions[instruction_pointer + position_index + 1]]
 
-    val_a = self.positions[pos_a]
-    val_b = self.positions[pos_b]
-    if nr == 3:
-      return val_a, val_b, pos_c
+      parameters.append(parameter)
 
-    if nr == 1:
-      return val_a
+    return parameters
+
 
   def parse_instruction(self, instruction):
     op_code = instruction % 100
@@ -66,24 +65,25 @@ class IntCodeComputer:
     return (op_code, [first_mode, second_mode, third_mode][0:mode_count])
 
   def run_program(self):
-    if self.positions[0] not in [OP_ADD, OP_MUL, OP_HALT]:
-      raise Exception("Program does not start with instruction: %s" % self.positions)
-
     while True:
-      instructions = self.positions[self.instruction_pointer]
-      (op_code, parameter_modes) = self.parse_instruction(instructions)
+      instruction = self.positions[self.instruction_pointer]
+      (op_code, parameter_modes) = self.parse_instruction(instruction)
 
       if op_code == OP_ADD:  # add A + B -> C
-        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer)
+        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer, parameter_modes)
+
+        output_position = self.positions[self.instruction_pointer + 3]
 
         val_c = val_a + val_b
-        self.positions[arg_c] = val_c
+        self.positions[output_position] = val_c
 
       elif op_code == OP_MUL:  # multiply A * B -> C
-        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer)
+        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer, parameter_modes)
+
+        output_position = self.positions[self.instruction_pointer + 3]
 
         val_c = val_a * val_b
-        self.positions[arg_c] = val_c
+        self.positions[output_position] = val_c
 
       elif op_code == OP_HALT:
         break
@@ -132,10 +132,26 @@ class Examples(unittest.TestCase):
     instruction = mul(MODE_POS, MODE_IMM, 7)
     self.assertEqual(71002, instruction)
 
+  def test_add_position_mode(self):
+    computer = IntCodeComputer()
+    # 2 + 3 = 5
+    computer.load([
+      add(MODE_POS, MODE_POS),  # 0 instruction
+      5,  # 1: arg 1
+      6,  # 2: arg 2
+      0,  # 3: arg 3,
+      99,  # 4: halt
+      2,  # 5: arg 1 value
+      3,  # 6: arg 2 value,
+    ])
+    computer.run_program()
+    self.assertEqual(5, computer.positions[0])
+
   def test_add_immediate_mode(self):
     computer = IntCodeComputer()
     # 2 + 3 = 5
-    computer.load([add(MODE_IMM, MODE_IMM), 2, 3, 0])
+    computer.load([add(MODE_IMM, MODE_IMM), 2, 3, 0, 99])
+    computer.run_program()
     self.assertEqual(5, computer.positions[0])
 
   def test_identity(self):
