@@ -64,7 +64,10 @@ class IntCodeComputer:
 
     return (op_code, [first_mode, second_mode, third_mode][0:mode_count])
 
-  def run_program(self):
+  def run_program(self, program=None):
+    if program is not None:
+      self.load(program)
+
     while True:
       instruction = self.positions[self.instruction_pointer]
       (op_code, parameter_modes) = self.parse_instruction(instruction)
@@ -88,9 +91,11 @@ class IntCodeComputer:
         self.positions[output_position] = val_c
 
       elif op_code == OP_IN:
-        _input = self.inputs.pop(0)
-        if _input is None:
-          raise ValueError("No more input!")
+
+        if len(self.inputs) == 0:
+          _input = int(input("Please provide input:").strip())
+        else:
+          _input = self.inputs.pop(0)
 
         output_position = self.positions[self.instruction_pointer + 1]
         self.positions[output_position] = _input
@@ -102,8 +107,6 @@ class IntCodeComputer:
         break
 
       self.instruction_pointer += 1 + parameter_count
-
-      print(self.instruction_pointer)
 
   def write(self, position, value):
     self.positions[position] = value
@@ -167,6 +170,11 @@ class Examples(unittest.TestCase):
     computer.run_program()
     self.assertEqual(5, computer.positions[0])
 
+  def test_instruction_jump(self):
+    computer = IntCodeComputer()
+    computer.run_program([OP_OUT, 7, OP_OUT, 7, OP_OUT, 7, OP_HALT, 42])
+    self.assertEqual([42, 42, 42], computer.output)
+
   def test_input(self):
     computer = IntCodeComputer()
     computer.load([OP_IN, 0, 99, 99, 99])
@@ -204,7 +212,12 @@ class Examples(unittest.TestCase):
 
 class Solutions(unittest.TestCase):
   def test_part1(self):
-    day5 = Day5Part1()
+    computer = IntCodeComputer()
+    computer.load([int(value) for value in open("input.txt").readlines()[0].strip().split(",")])
+    computer.input(1)
+    computer.run_program()
+    print(computer.output)
+    # 45074395 Correct
 
   def test_part2(self):
     day5 = Day5Part2()
