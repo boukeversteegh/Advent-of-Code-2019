@@ -5,6 +5,22 @@ OP_MUL = 2
 OP_ADD = 1
 OP_IN = 3
 OP_OUT = 4
+OP_JUMP_IF_TRUE = 5
+OP_JUMP_IF_FALSE = 6
+OP_LT = 7
+OP_EQ = 8
+
+OP_CODES_LABELS = {
+  99: 'EN',
+  2: 'MU',
+  1: 'AD',
+  3: 'IN',
+  4: 'OU',
+  5: 'JT',
+  6: 'JF',
+  7: 'LT',
+  8: 'EQ',
+}
 
 OP_PARAM_COUNTS = {
   OP_HALT: 0,
@@ -12,6 +28,10 @@ OP_PARAM_COUNTS = {
   OP_ADD: 3,  # A + B -> C
   OP_IN: 1,
   OP_OUT: 1,
+  OP_JUMP_IF_TRUE: 2,
+  OP_JUMP_IF_FALSE: 2,
+  OP_LT: 3,
+  OP_EQ: 3,
 }
 
 MODE_POS = 0
@@ -32,6 +52,7 @@ class IntCodeComputer:
     self.output = []
 
   def load(self, input_program):
+    self.reset()
     self.positions.clear()
     self.positions.extend(input_program)
 
@@ -64,24 +85,38 @@ class IntCodeComputer:
 
     return (op_code, [first_mode, second_mode, third_mode][0:mode_count])
 
-  def run_program(self, program=None):
+  def run_program(self, program=None, inputs=None):
     if program is not None:
       self.load(program)
 
+    if inputs is not None:
+      self.inputs = inputs
+
+    print(''.join([str(p).rjust(5, ' ') for p in range(0, len(self.positions))]))
+
     while True:
+      jump_override = False
       instruction = self.positions[self.instruction_pointer]
+
+      # print('')
+      # print('#%s %s' % (self.instruction_pointer, instruction))
+
       (op_code, parameter_modes) = self.parse_instruction(instruction)
+      print(''.join([(('%s%s' % (OP_CODES_LABELS[op_code], ''.join(
+        '*' if m == 0 else '-' for m in parameter_modes))) if p == self.instruction_pointer else str(val)).rjust(5, ' ')
+                     for p, val in
+                     enumerate(self.positions)]), end='')
+
+      print('   %s / %s' % (self.inputs, self.output))
 
       parameter_count = len(parameter_modes)
-
       if op_code == OP_ADD:  # add A + B -> C
-        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
 
-        output_position = self.positions[self.instruction_pointer + 3]
+        output_position = self.positions[self.instruction_pointer + parameter_count]
 
         val_c = val_a + val_b
         self.positions[output_position] = val_c
-
       elif op_code == OP_MUL:  # multiply A * B -> C
         (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer, parameter_modes)
 
@@ -89,9 +124,7 @@ class IntCodeComputer:
 
         val_c = val_a * val_b
         self.positions[output_position] = val_c
-
       elif op_code == OP_IN:
-
         if len(self.inputs) == 0:
           _input = int(input("Please provide input:").strip())
         else:
@@ -100,14 +133,41 @@ class IntCodeComputer:
         output_position = self.positions[self.instruction_pointer + 1]
         self.positions[output_position] = _input
       elif op_code == OP_OUT:
-        value = self.positions[self.positions[self.instruction_pointer + 1]]
+        (value,) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        # value = self.positions[self.positions[self.instruction_pointer + 1]]
         self.output.append(value)
+      elif op_code == OP_JUMP_IF_TRUE:
+        (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        # jump_position = self.positions[self.instruction_pointer + parameter_count]
 
+        if val_a != 0:
+          self.instruction_pointer = jump_position
+          jump_override = True
+      elif op_code == OP_JUMP_IF_FALSE:
+        (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        # jump_position = self.positions[self.instruction_pointer + parameter_count]
+
+        # print("if %s is 0, then jump to %s" % (val_a, jump_position))
+        if val_a == 0:
+          self.instruction_pointer = jump_position
+          jump_override = True
+      elif op_code == OP_EQ:
+        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
+
+        output_position = self.positions[self.instruction_pointer + parameter_count]
+        if (val_a == val_b):
+          self.positions[output_position] = 1
+        else:
+          self.positions[output_position] = 0
+      elif op_code == OP_LT:
+        (val_a, val_b, _) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        output_position = self.positions[self.instruction_pointer + parameter_count]
+        self.positions[output_position] = 1 if val_a < val_b else 0
       elif op_code == OP_HALT:
         break
-
-      self.instruction_pointer += 1 + parameter_count
-
+      if not jump_override:
+        self.instruction_pointer += 1 + parameter_count
+    print("")
   def write(self, position, value):
     self.positions[position] = value
 
@@ -136,10 +196,30 @@ def mul(first_mode, second_mode, output_mode=MODE_POS):
   return OP_MUL + 100 * first_mode + 1000 * second_mode + 10000 * output_mode
 
 
+def eq(first_mode, second_mode):
+  return OP_EQ + 100 * first_mode + 1000 * second_mode + 10000 * MODE_POS
+
+
+def lt(first_mode, second_mode):
+  return OP_LT + 100 * first_mode + 1000 * second_mode + 10000 * MODE_POS
+
 def op_input(output_position):
-  return OP_IN * 100 + 1000 * output_position
+  return OP_IN + 100 * output_position
+
+
+def jump_if_true(first_mode):
+  return OP_JUMP_IF_TRUE + 100 * first_mode
+
+
+def jump_if_false(first_mode):
+  return OP_JUMP_IF_FALSE + 100 * first_mode
+
+
+def op_output(first_mode):
+  return OP_OUT + 100 * first_mode
 
 class Examples(unittest.TestCase):
+
   def test_add_operation(self):
     instruction = add(MODE_IMM, MODE_IMM, 0)
     self.assertEqual(1101, instruction)
@@ -209,6 +289,95 @@ class Examples(unittest.TestCase):
     self.assertEqual(OP_HALT, op_code)
     self.assertEqual([], modes)
 
+  def test_equals(self):
+    computer = IntCodeComputer()
+    computer.run_program([eq(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
+    self.assertEqual(0, computer.positions[0])
+    computer.run_program([eq(MODE_IMM, MODE_IMM), 1, 1, 0, 99])
+    self.assertEqual(1, computer.positions[0])
+
+    computer.run_program([eq(MODE_IMM, MODE_POS), 108, 0, 0, 99])
+    self.assertEqual(1, computer.positions[0])
+
+    computer.run_program([eq(MODE_IMM, MODE_POS), 107, 0, 0, 99])
+    self.assertEqual(0, computer.positions[0])
+
+  def test_less_than(self):
+    computer = IntCodeComputer()
+
+    computer.run_program([lt(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
+    self.assertEqual(1, computer.positions[0])
+
+    computer.run_program([lt(MODE_IMM, MODE_IMM), 2, 2, 0, 99])
+    self.assertEqual(0, computer.positions[0])
+
+    computer.run_program([lt(MODE_IMM, MODE_IMM), 2, 0, 0, 99])
+    self.assertEqual(0, computer.positions[0])
+
+  def test_jump_if_true(self):
+    computer = IntCodeComputer()
+
+    computer.run_program([jump_if_true(MODE_IMM), 0, 4, 99, op_output(MODE_POS), 1, 99])
+    self.assertEqual([], computer.output)
+
+    computer.run_program([jump_if_true(MODE_IMM), 42, 4, 99, op_output(MODE_POS), 1, 99])
+    self.assertEqual([42], computer.output)
+
+  def test_jump_if_false(self):
+    computer = IntCodeComputer()
+
+    computer.run_program([jump_if_false(MODE_IMM), 42, 4, 99, op_output(MODE_POS), 3, 99])
+    self.assertEqual([], computer.output)
+
+    computer.run_program([jump_if_false(MODE_IMM), 0, 4, 99, op_output(MODE_POS), 3, 99])
+    self.assertEqual([99], computer.output)
+
+  def test_part1_example_negative(self):
+    computer = IntCodeComputer()
+    computer.run_program([1101, 100, -1, 4, 0])
+    self.assertEqual(99, computer.positions[4])
+
+  def test_part2_example_compare_8(self):
+    computer = IntCodeComputer()
+
+    computer.run_program([3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], inputs=[8])
+    self.assertEqual([1], computer.output, "1. position mode: 8 == 8 -> 1")
+
+    computer.run_program([3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8], inputs=[3])
+    self.assertEqual([0], computer.output, "1. position mode: 3 == 8 -> 0")
+
+    computer.run_program([3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8], inputs=[7])
+    self.assertEqual([1], computer.output, "2. position mode: 7 < 8 -> 1")
+
+    computer.run_program([3, 3, 1108, -1, 8, 3, 4, 3, 99], inputs=[8])
+    self.assertEqual([1], computer.output, "3. immediate mode: 8 == 8 -> 1")
+
+    computer.run_program([3, 3, 1107, -1, 8, 3, 4, 3, 99], inputs=[7])
+    self.assertEqual([1], computer.output, "4. immediate mode: 7 < 8 -> 1")
+
+  def test_part2_example_jump_tests(self):
+    computer = IntCodeComputer()
+
+    computer.run_program([3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9], inputs=[0])
+    self.assertEqual([0], computer.output, "position mode 0 == 0 -> 0")
+
+    computer.run_program([3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9], inputs=[7])
+    self.assertEqual([1], computer.output, "position mode 7 != 0 -> 1")
+
+    computer.run_program([3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1], inputs=[0])
+    self.assertEqual([0], computer.output, "immediate mode 0 == 0 -> 0")
+
+    computer.run_program([3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9], inputs=[7])
+    self.assertEqual([1], computer.output, "immediate mode 7 != 0 -> 1")
+
+  def test_part2_example_larger_jump_test(self):
+    computer = IntCodeComputer()
+    computer.load([3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31,
+                   1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104,
+                   999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99])
+
+    computer.run_program(inputs=[7])
+    self.assertEqual([999], computer.output, "return 999 if 7 < 8")
 
 class Solutions(unittest.TestCase):
   def test_part1(self):
@@ -220,4 +389,9 @@ class Solutions(unittest.TestCase):
     # 45074395 Correct
 
   def test_part2(self):
-    day5 = Day5Part2()
+    computer = IntCodeComputer()
+    computer.load([int(value) for value in open("input.txt").readlines()[0].strip().split(",")])
+    computer.input(5)
+    computer.run_program()
+    print(computer.output)
+    # 8346937 Correct
