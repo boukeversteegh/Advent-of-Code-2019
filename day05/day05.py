@@ -1,5 +1,7 @@
 import unittest
 
+from day05.instruction_set import *
+
 OP_HALT = 99
 OP_MUL = 2
 OP_ADD = 1
@@ -50,7 +52,6 @@ OP_OUTPUT_POSITIONS = {
 MODE_POS = 0
 MODE_IMM = 1
 
-
 class IntCodeComputer:
   def __init__(self):
     self.instruction_pointer = 0
@@ -58,6 +59,7 @@ class IntCodeComputer:
     self.inputs = []
     self.output = []
     self.debug = True
+    self.linked_output_computer = None
 
   def reset(self):
     self.instruction_pointer = 0
@@ -82,7 +84,6 @@ class IntCodeComputer:
 
     return parameters
 
-
   def parse_instruction(self, instruction):
     op_code = instruction % 100
     modes_value = instruction // 100
@@ -98,6 +99,13 @@ class IntCodeComputer:
     mode_count = OP_PARAM_COUNTS[op_code]
 
     return (op_code, [first_mode, second_mode, third_mode][0:mode_count])
+
+  def link_output(self, computer):
+    self.linked_output_computer = computer
+
+  def load_from_file(self, filename):
+    program = [int(value) for value in open(filename).readlines()[0].strip().split(",")]
+    self.load(program)
 
   def run_program(self, program=None, inputs=None):
     if program is not None:
@@ -156,6 +164,10 @@ class IntCodeComputer:
         self.positions[output_position] = _input
       elif op_code == OP_OUT:
         (value,) = self.get_parameters(self.instruction_pointer, parameter_modes, OP_OUTPUT_POSITIONS[op_code])
+
+        if self.linked_output_computer:
+          self.linked_output_computer.input(value)
+
         self.output.append(value)
       elif op_code == OP_JUMP_IF_TRUE:
         (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
@@ -210,50 +222,20 @@ class Day5Part2(IntCodeComputer):
     pass
 
 
-def add(first_mode, second_mode, output_mode=MODE_POS):
-  return OP_ADD + 100 * first_mode + 1000 * second_mode + 10000 * output_mode
-
-
-def mul(first_mode, second_mode, output_mode=MODE_POS):
-  return OP_MUL + 100 * first_mode + 1000 * second_mode + 10000 * output_mode
-
-
-def eq(first_mode, second_mode):
-  return OP_EQ + 100 * first_mode + 1000 * second_mode + 10000 * MODE_POS
-
-
-def lt(first_mode, second_mode):
-  return OP_LT + 100 * first_mode + 1000 * second_mode + 10000 * MODE_POS
-
-def op_input(output_position):
-  return OP_IN + 100 * output_position
-
-
-def jump_if_true(first_mode):
-  return OP_JUMP_IF_TRUE + 100 * first_mode
-
-
-def jump_if_false(first_mode):
-  return OP_JUMP_IF_FALSE + 100 * first_mode
-
-
-def op_output(first_mode):
-  return OP_OUT + 100 * first_mode
-
 class Examples(unittest.TestCase):
   def test_add_operation(self):
-    instruction = add(MODE_IMM, MODE_IMM, 0)
+    instruction = InstructionSet.add(MODE_IMM, MODE_IMM, 0)
     self.assertEqual(1101, instruction)
 
   def test_mul_operation(self):
-    instruction = mul(MODE_POS, MODE_IMM, 7)
+    instruction = InstructionSet.mul(MODE_POS, MODE_IMM, 7)
     self.assertEqual(71002, instruction)
 
   def test_add_position_mode(self):
     computer = IntCodeComputer()
     # 2 + 3 = 5
     computer.load([
-      add(MODE_POS, MODE_POS),  # 0 instruction
+      InstructionSet.add(MODE_POS, MODE_POS),  # 0 instruction
       5,  # 1: arg 1
       6,  # 2: arg 2
       0,  # 3: arg 3,
@@ -267,7 +249,7 @@ class Examples(unittest.TestCase):
   def test_add_immediate_mode(self):
     computer = IntCodeComputer()
     # 2 + 3 = 5
-    computer.load([add(MODE_IMM, MODE_IMM), 2, 3, 0, 99])
+    computer.load([InstructionSet.add(MODE_IMM, MODE_IMM), 2, 3, 0, 99])
     computer.run_program()
     self.assertEqual(5, computer.positions[0])
 
@@ -312,45 +294,45 @@ class Examples(unittest.TestCase):
 
   def test_equals(self):
     computer = IntCodeComputer()
-    computer.run_program([eq(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
+    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
     self.assertEqual(0, computer.positions[0])
-    computer.run_program([eq(MODE_IMM, MODE_IMM), 1, 1, 0, 99])
+    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_IMM), 1, 1, 0, 99])
     self.assertEqual(1, computer.positions[0])
 
-    computer.run_program([eq(MODE_IMM, MODE_POS), 108, 0, 0, 99])
+    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_POS), 108, 0, 0, 99])
     self.assertEqual(1, computer.positions[0])
 
-    computer.run_program([eq(MODE_IMM, MODE_POS), 107, 0, 0, 99])
+    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_POS), 107, 0, 0, 99])
     self.assertEqual(0, computer.positions[0])
 
   def test_less_than(self):
     computer = IntCodeComputer()
 
-    computer.run_program([lt(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
+    computer.run_program([InstructionSet.lt(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
     self.assertEqual(1, computer.positions[0])
 
-    computer.run_program([lt(MODE_IMM, MODE_IMM), 2, 2, 0, 99])
+    computer.run_program([InstructionSet.lt(MODE_IMM, MODE_IMM), 2, 2, 0, 99])
     self.assertEqual(0, computer.positions[0])
 
-    computer.run_program([lt(MODE_IMM, MODE_IMM), 2, 0, 0, 99])
+    computer.run_program([InstructionSet.lt(MODE_IMM, MODE_IMM), 2, 0, 0, 99])
     self.assertEqual(0, computer.positions[0])
 
   def test_jump_if_true(self):
     computer = IntCodeComputer()
 
-    computer.run_program([jump_if_true(MODE_IMM), 0, 4, 99, op_output(MODE_POS), 1, 99])
+    computer.run_program([InstructionSet.jump_if_true(MODE_IMM), 0, 4, 99, InstructionSet.op_output(MODE_POS), 1, 99])
     self.assertEqual([], computer.output)
 
-    computer.run_program([jump_if_true(MODE_IMM), 42, 4, 99, op_output(MODE_POS), 1, 99])
+    computer.run_program([InstructionSet.jump_if_true(MODE_IMM), 42, 4, 99, InstructionSet.op_output(MODE_POS), 1, 99])
     self.assertEqual([42], computer.output)
 
   def test_jump_if_false(self):
     computer = IntCodeComputer()
 
-    computer.run_program([jump_if_false(MODE_IMM), 42, 4, 99, op_output(MODE_POS), 3, 99])
+    computer.run_program([InstructionSet.jump_if_false(MODE_IMM), 42, 4, 99, InstructionSet.op_output(MODE_POS), 3, 99])
     self.assertEqual([], computer.output)
 
-    computer.run_program([jump_if_false(MODE_IMM), 0, 4, 99, op_output(MODE_POS), 3, 99])
+    computer.run_program([InstructionSet.jump_if_false(MODE_IMM), 0, 4, 99, InstructionSet.op_output(MODE_POS), 3, 99])
     self.assertEqual([99], computer.output)
 
   def test_part1_example_negative(self):
@@ -403,7 +385,7 @@ class Examples(unittest.TestCase):
 class Solutions(unittest.TestCase):
   def test_part1(self):
     computer = IntCodeComputer()
-    computer.load([int(value) for value in open("input.txt").readlines()[0].strip().split(",")])
+    computer.load([int(value) for value in open("day05/input.txt").readlines()[0].strip().split(",")])
     computer.input(1)
     computer.run_program()
     print(computer.output)
@@ -411,7 +393,7 @@ class Solutions(unittest.TestCase):
 
   def test_part2(self):
     computer = IntCodeComputer()
-    computer.load([int(value) for value in open("input.txt").readlines()[0].strip().split(",")])
+    computer.load([int(value) for value in open("day05/input.txt").readlines()[0].strip().split(",")])
     computer.input(5)
     computer.run_program()
     print(computer.output)
