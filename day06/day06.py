@@ -12,12 +12,11 @@ lines = open("input.txt").readlines()
 parents = {}
 
 orbits = defaultdict(lambda: [])
-paths = {}
 for line in lines:
   parent, child = line.strip().split(')')
   orbits[parent].append(child)
 
-
+paths = {}
 def load_paths(node, path):
   paths[node] = path
   children = orbits[node]

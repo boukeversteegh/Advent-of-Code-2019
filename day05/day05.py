@@ -34,6 +34,19 @@ OP_PARAM_COUNTS = {
   OP_EQ: 3,
 }
 
+# TODO Add output positions per OP_CODE
+OP_OUTPUT_POSITIONS = {
+  OP_HALT: [],  # 0,
+  OP_MUL: [2],  # 3,
+  OP_ADD: [2],  # 3,
+  OP_IN: [0],  # 1,
+  OP_OUT: [],  # 1,
+  OP_JUMP_IF_TRUE: [],  # 2,
+  OP_JUMP_IF_FALSE: [],  # 2,
+  OP_LT: [2],  # 3,
+  OP_EQ: [2],  # 3,
+}
+
 MODE_POS = 0
 MODE_IMM = 1
 
@@ -56,10 +69,10 @@ class IntCodeComputer:
     self.positions.clear()
     self.positions.extend(input_program)
 
-  def get_parameters(self, instruction_pointer, modes):
+  def get_parameters(self, instruction_pointer, modes, output_parameters=[]):
     parameters = []
     for (position_index, mode) in enumerate(modes):
-      if mode == MODE_IMM:
+      if mode == MODE_IMM or position_index in output_parameters:
         parameter = self.positions[instruction_pointer + position_index + 1]
       else:
         parameter = self.positions[self.positions[instruction_pointer + position_index + 1]]
@@ -71,14 +84,14 @@ class IntCodeComputer:
 
   def parse_instruction(self, instruction):
     op_code = instruction % 100
-    modes_value = int(instruction / 100)
+    modes_value = instruction // 100
 
     first_mode = modes_value % 10
 
-    modes_value = int(modes_value / 10)
+    modes_value = modes_value // 10
     second_mode = modes_value % 10
 
-    modes_value = int(modes_value / 10)
+    modes_value = modes_value // 10
     third_mode = modes_value % 10
 
     mode_count = OP_PARAM_COUNTS[op_code]
@@ -111,16 +124,15 @@ class IntCodeComputer:
 
       parameter_count = len(parameter_modes)
       if op_code == OP_ADD:  # add A + B -> C
-        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
-
-        output_position = self.positions[self.instruction_pointer + parameter_count]
+        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                              OP_OUTPUT_POSITIONS[op_code])
 
         val_c = val_a + val_b
         self.positions[output_position] = val_c
       elif op_code == OP_MUL:  # multiply A * B -> C
-        (val_a, val_b, arg_c) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                              OP_OUTPUT_POSITIONS[op_code])
 
-        output_position = self.positions[self.instruction_pointer + 3]
 
         val_c = val_a * val_b
         self.positions[output_position] = val_c
@@ -133,35 +145,33 @@ class IntCodeComputer:
         output_position = self.positions[self.instruction_pointer + 1]
         self.positions[output_position] = _input
       elif op_code == OP_OUT:
-        (value,) = self.get_parameters(self.instruction_pointer, parameter_modes)
-        # value = self.positions[self.positions[self.instruction_pointer + 1]]
+        (value,) = self.get_parameters(self.instruction_pointer, parameter_modes, OP_OUTPUT_POSITIONS[op_code])
         self.output.append(value)
       elif op_code == OP_JUMP_IF_TRUE:
-        (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
-        # jump_position = self.positions[self.instruction_pointer + parameter_count]
+        (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                     OP_OUTPUT_POSITIONS[op_code])
 
         if val_a != 0:
           self.instruction_pointer = jump_position
           jump_override = True
       elif op_code == OP_JUMP_IF_FALSE:
-        (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
-        # jump_position = self.positions[self.instruction_pointer + parameter_count]
+        (val_a, jump_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                     OP_OUTPUT_POSITIONS[op_code])
 
-        # print("if %s is 0, then jump to %s" % (val_a, jump_position))
         if val_a == 0:
           self.instruction_pointer = jump_position
           jump_override = True
       elif op_code == OP_EQ:
-        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes)
+        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                              OP_OUTPUT_POSITIONS[op_code])
 
-        output_position = self.positions[self.instruction_pointer + parameter_count]
         if (val_a == val_b):
           self.positions[output_position] = 1
         else:
           self.positions[output_position] = 0
       elif op_code == OP_LT:
-        (val_a, val_b, _) = self.get_parameters(self.instruction_pointer, parameter_modes)
-        output_position = self.positions[self.instruction_pointer + parameter_count]
+        (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                              OP_OUTPUT_POSITIONS[op_code])
         self.positions[output_position] = 1 if val_a < val_b else 0
       elif op_code == OP_HALT:
         break
@@ -219,7 +229,6 @@ def op_output(first_mode):
   return OP_OUT + 100 * first_mode
 
 class Examples(unittest.TestCase):
-
   def test_add_operation(self):
     instruction = add(MODE_IMM, MODE_IMM, 0)
     self.assertEqual(1101, instruction)
