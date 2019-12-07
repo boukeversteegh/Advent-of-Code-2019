@@ -57,6 +57,7 @@ class IntCodeComputer:
     self.positions = [OP_HALT]
     self.inputs = []
     self.output = []
+    self.debug = True
 
   def reset(self):
     self.instruction_pointer = 0
@@ -105,7 +106,11 @@ class IntCodeComputer:
     if inputs is not None:
       self.inputs = inputs
 
-    print(''.join([str(p).rjust(5, ' ') for p in range(0, len(self.positions))]))
+    if inputs is not None and None in inputs:
+      raise ValueError("None in input! %s" % (inputs,))
+
+    if self.debug:
+      print(''.join([str(p).rjust(5, ' ') for p in range(0, len(self.positions))]))
 
     while True:
       jump_override = False
@@ -115,12 +120,14 @@ class IntCodeComputer:
       # print('#%s %s' % (self.instruction_pointer, instruction))
 
       (op_code, parameter_modes) = self.parse_instruction(instruction)
-      print(''.join([(('%s%s' % (OP_CODES_LABELS[op_code], ''.join(
-        '*' if m == 0 else '-' for m in parameter_modes))) if p == self.instruction_pointer else str(val)).rjust(5, ' ')
-                     for p, val in
-                     enumerate(self.positions)]), end='')
+      if self.debug:
+        print(''.join([(('%s%s' % (OP_CODES_LABELS[op_code], ''.join(
+          '*' if m == 0 else '-' for m in parameter_modes))) if p == self.instruction_pointer else str(val)).rjust(5,
+                                                                                                                   ' ')
+                       for p, val in
+                       enumerate(self.positions)]), end='')
 
-      print('   %s / %s' % (self.inputs, self.output))
+        print('   %s / %s' % (self.inputs, self.output))
 
       parameter_count = len(parameter_modes)
       if op_code == OP_ADD:  # add A + B -> C
@@ -141,6 +148,9 @@ class IntCodeComputer:
           _input = int(input("Please provide input:").strip())
         else:
           _input = self.inputs.pop(0)
+
+        if _input is None:
+          raise ValueError("Input was NONE")
 
         output_position = self.positions[self.instruction_pointer + 1]
         self.positions[output_position] = _input
@@ -177,7 +187,9 @@ class IntCodeComputer:
         break
       if not jump_override:
         self.instruction_pointer += 1 + parameter_count
-    print("")
+    if self.debug:
+      print("")
+
   def write(self, position, value):
     self.positions[position] = value
 
