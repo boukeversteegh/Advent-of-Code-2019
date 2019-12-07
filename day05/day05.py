@@ -53,19 +53,22 @@ MODE_POS = 0
 MODE_IMM = 1
 
 class IntCodeComputer:
-  def __init__(self):
+  def __init__(self, name="Computer"):
     self.instruction_pointer = 0
     self.positions = [OP_HALT]
     self.inputs = []
     self.output = []
     self.debug = True
     self.linked_output_computer = None
+    self.waiting_for_input = False
+    self.name = name
 
   def reset(self):
     self.instruction_pointer = 0
     self.positions = [OP_HALT]
     self.inputs = []
     self.output = []
+    self.waiting_for_input = False
 
   def load(self, input_program):
     self.reset()
@@ -120,6 +123,9 @@ class IntCodeComputer:
     if self.debug:
       print(''.join([str(p).rjust(5, ' ') for p in range(0, len(self.positions))]))
 
+    self.execution_loop()
+
+  def execution_loop(self):
     while True:
       jump_override = False
       instruction = self.positions[self.instruction_pointer]
@@ -148,12 +154,13 @@ class IntCodeComputer:
         (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
                                                               OP_OUTPUT_POSITIONS[op_code])
 
-
         val_c = val_a * val_b
         self.positions[output_position] = val_c
       elif op_code == OP_IN:
         if len(self.inputs) == 0:
-          _input = int(input("Please provide input:").strip())
+          self.waiting_for_input = True
+          print("[%s] waiting for input" % self.name)
+          return
         else:
           _input = self.inputs.pop(0)
 
@@ -166,6 +173,7 @@ class IntCodeComputer:
         (value,) = self.get_parameters(self.instruction_pointer, parameter_modes, OP_OUTPUT_POSITIONS[op_code])
 
         if self.linked_output_computer:
+          print("[%s] passing output [%s] to linked computer" % (self.name, value))
           self.linked_output_computer.input(value)
 
         self.output.append(value)
@@ -210,6 +218,9 @@ class IntCodeComputer:
 
   def input(self, value):
     self.inputs.append(value)
+    if self.waiting_for_input:
+      print("[%s] Input received  %s. continue execution" % (self.name, value))
+      self.execution_loop()
 
 
 class Day5Part1(IntCodeComputer):
@@ -384,17 +395,19 @@ class Examples(unittest.TestCase):
 
 class Solutions(unittest.TestCase):
   def test_part1(self):
-    computer = IntCodeComputer()
-    computer.load([int(value) for value in open("day05/input.txt").readlines()[0].strip().split(",")])
-    computer.input(1)
-    computer.run_program()
-    print(computer.output)
-    # 45074395 Correct
+    with open("day05/input.txt") as fh:
+      computer = IntCodeComputer()
+      computer.load([int(value) for value in fh.readlines()[0].strip().split(",")])
+      computer.input(1)
+      computer.run_program()
+      print(computer.output)
+      # 45074395 Correct
 
   def test_part2(self):
-    computer = IntCodeComputer()
-    computer.load([int(value) for value in open("day05/input.txt").readlines()[0].strip().split(",")])
-    computer.input(5)
-    computer.run_program()
-    print(computer.output)
-    # 8346937 Correct
+    with open("day05/input.txt") as fh:
+      computer = IntCodeComputer()
+      computer.load([int(value) for value in fh.readlines()[0].strip().split(",")])
+      computer.input(5)
+      computer.run_program()
+      print(computer.output)
+      # 8346937 Correct

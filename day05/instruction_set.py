@@ -21,8 +21,8 @@ class InstructionSet:
     return OpCodes.OP_LT + 100 * first_mode + 1000 * second_mode + 10000 * Modes.POS
 
   @staticmethod
-  def op_input(output_position):
-    return OpCodes.OP_IN + 100 * output_position
+  def op_input():
+    return OpCodes.OP_IN
 
   @staticmethod
   def jump_if_true(first_mode):
