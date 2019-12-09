@@ -99,3 +99,4 @@ class SolutionsDay8(unittest.TestCase):
           print(' ', end="")
 
       print("")
+    # GZKJY

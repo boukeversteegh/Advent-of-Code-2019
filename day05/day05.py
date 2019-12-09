@@ -96,11 +96,21 @@ class IntCodeComputer:
   def get_parameters(self, instruction_pointer, modes, output_parameters=[]):
     parameters = []
     for (position_index, mode) in enumerate(modes):
-      if mode == Modes.IMM or position_index in output_parameters:
+      is_output = position_index in output_parameters
+
+      if is_output and mode == Modes.POS:
+        mode = Modes.IMM
+
+      if mode == Modes.IMM:
         parameter = self.read(instruction_pointer + position_index + 1)
       elif mode == Modes.REL:
         relative_value = self.read(instruction_pointer + position_index + 1)
-        parameter = self.read(self.relative_base + relative_value)
+        position = self.relative_base + relative_value
+        # Todo: split up cases differently
+        if is_output:
+          parameter = position
+        else:
+          parameter = self.read(position)
       else:
         parameter = self.read(self.read(instruction_pointer + position_index + 1))
 
@@ -152,9 +162,10 @@ class IntCodeComputer:
       instruction = self.positions[self.instruction_pointer]
 
       (op_code, parameter_modes) = self.parse_instruction(instruction)
+
       if self.debug:
         print(''.join([(('%s%s' % (OP_CODES_LABELS[op_code], ''.join(
-          '*' if m == 0 else '-' for m in parameter_modes))) if p == self.instruction_pointer else str(val)).rjust(5,
+          ['*', '-', '~'][m] for m in parameter_modes))) if p == self.instruction_pointer else str(val)).rjust(5,
                                                                                                                    ' ')
                        for p, val in
                        enumerate(self.positions)]), end='')
