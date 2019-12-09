@@ -123,3 +123,4 @@ class Solutions(unittest.TestCase):
     computer.input(2)
     computer.run_program()
     print(computer.output)
+    # 82760
