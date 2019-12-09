@@ -12,6 +12,7 @@ OP_JUMP_IF_FALSE = 6
 OP_LT = 7
 OP_EQ = 8
 
+
 OP_CODES_LABELS = {
   99: 'EN',
   2: 'MU',
@@ -22,6 +23,7 @@ OP_CODES_LABELS = {
   6: 'JF',
   7: 'LT',
   8: 'EQ',
+  9: 'AB',
 }
 
 OP_PARAM_COUNTS = {
@@ -34,6 +36,7 @@ OP_PARAM_COUNTS = {
   OP_JUMP_IF_FALSE: 2,
   OP_LT: 3,
   OP_EQ: 3,
+  OpCodes.OP_ARB: 1,
 }
 
 # TODO Add output positions per OP_CODE
@@ -47,6 +50,7 @@ OP_OUTPUT_POSITIONS = {
   OP_JUMP_IF_FALSE: [],  # 2,
   OP_LT: [2],  # 3,
   OP_EQ: [2],  # 3,
+  OpCodes.OP_ARB: [],  # 1
 }
 
 MODE_POS = 0
@@ -62,6 +66,7 @@ class IntCodeComputer:
     self.linked_output_computer = None
     self.waiting_for_input = False
     self.name = name
+    self.relative_base = 0
 
   def reset(self):
     self.instruction_pointer = 0
@@ -69,19 +74,35 @@ class IntCodeComputer:
     self.inputs = []
     self.output = []
     self.waiting_for_input = False
+    self.relative_base = 0
 
   def load(self, input_program):
     self.reset()
     self.positions.clear()
     self.positions.extend(input_program)
 
+  def read(self, position):
+    if position >= len(self.positions):
+      return 0
+    else:
+      return self.positions[position]
+
+  def write(self, position, value):
+    extra_memory = position - len(self.positions) + 1
+    if extra_memory > 0:
+      self.positions.extend([0] * extra_memory)
+    self.positions[position] = value
+
   def get_parameters(self, instruction_pointer, modes, output_parameters=[]):
     parameters = []
     for (position_index, mode) in enumerate(modes):
-      if mode == MODE_IMM or position_index in output_parameters:
-        parameter = self.positions[instruction_pointer + position_index + 1]
+      if mode == Modes.IMM or position_index in output_parameters:
+        parameter = self.read(instruction_pointer + position_index + 1)
+      elif mode == Modes.REL:
+        relative_value = self.read(instruction_pointer + position_index + 1)
+        parameter = self.read(self.relative_base + relative_value)
       else:
-        parameter = self.positions[self.positions[instruction_pointer + position_index + 1]]
+        parameter = self.read(self.read(instruction_pointer + position_index + 1))
 
       parameters.append(parameter)
 
@@ -130,9 +151,6 @@ class IntCodeComputer:
       jump_override = False
       instruction = self.positions[self.instruction_pointer]
 
-      # print('')
-      # print('#%s %s' % (self.instruction_pointer, instruction))
-
       (op_code, parameter_modes) = self.parse_instruction(instruction)
       if self.debug:
         print(''.join([(('%s%s' % (OP_CODES_LABELS[op_code], ''.join(
@@ -141,7 +159,7 @@ class IntCodeComputer:
                        for p, val in
                        enumerate(self.positions)]), end='')
 
-        print('   %s / %s' % (self.inputs, self.output))
+        print('   %s / %s RB=%s' % (self.inputs, self.output, self.relative_base))
 
       parameter_count = len(parameter_modes)
       if op_code == OP_ADD:  # add A + B -> C
@@ -149,13 +167,13 @@ class IntCodeComputer:
                                                               OP_OUTPUT_POSITIONS[op_code])
 
         val_c = val_a + val_b
-        self.positions[output_position] = val_c
+        self.write(output_position, val_c)
       elif op_code == OP_MUL:  # multiply A * B -> C
         (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
                                                               OP_OUTPUT_POSITIONS[op_code])
 
         val_c = val_a * val_b
-        self.positions[output_position] = val_c
+        self.write(output_position, val_c)
       elif op_code == OP_IN:
         if len(self.inputs) == 0:
           self.waiting_for_input = True
@@ -167,8 +185,11 @@ class IntCodeComputer:
         if _input is None:
           raise ValueError("Input was NONE")
 
-        output_position = self.positions[self.instruction_pointer + 1]
-        self.positions[output_position] = _input
+        (output_position,) = self.get_parameters(self.instruction_pointer, parameter_modes,
+                                                 OP_OUTPUT_POSITIONS[op_code])
+
+        # output_position = self.read(self.instruction_pointer + 1)
+        self.write(output_position, _input)
       elif op_code == OP_OUT:
         (value,) = self.get_parameters(self.instruction_pointer, parameter_modes, OP_OUTPUT_POSITIONS[op_code])
 
@@ -194,27 +215,28 @@ class IntCodeComputer:
       elif op_code == OP_EQ:
         (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
                                                               OP_OUTPUT_POSITIONS[op_code])
-
         if (val_a == val_b):
-          self.positions[output_position] = 1
+          self.write(output_position, 1)
         else:
-          self.positions[output_position] = 0
+          self.write(output_position, 0)
       elif op_code == OP_LT:
         (val_a, val_b, output_position) = self.get_parameters(self.instruction_pointer, parameter_modes,
                                                               OP_OUTPUT_POSITIONS[op_code])
-        self.positions[output_position] = 1 if val_a < val_b else 0
+
+        self.write(output_position, 1 if val_a < val_b else 0)
       elif op_code == OP_HALT:
         break
+
+      # TODO: Move OpCode logic to seperate methods
+      elif op_code == OpCodes.OP_ARB:
+        (val_a,) = self.get_parameters(self.instruction_pointer, parameter_modes, OP_OUTPUT_POSITIONS[op_code])
+
+        self.relative_base += val_a
+        pass
       if not jump_override:
         self.instruction_pointer += 1 + parameter_count
     if self.debug:
       print("")
-
-  def write(self, position, value):
-    self.positions[position] = value
-
-  def result(self):
-    return self.positions[0]
 
   def input(self, value):
     self.inputs.append(value)
@@ -235,18 +257,18 @@ class Day5Part2(IntCodeComputer):
 
 class Examples(unittest.TestCase):
   def test_add_operation(self):
-    instruction = InstructionSet.add(MODE_IMM, MODE_IMM, 0)
+    instruction = InstructionSet.add(Modes.IMM, Modes.IMM, 0)
     self.assertEqual(1101, instruction)
 
   def test_mul_operation(self):
-    instruction = InstructionSet.mul(MODE_POS, MODE_IMM, 7)
+    instruction = InstructionSet.mul(Modes.POS, Modes.IMM, 7)
     self.assertEqual(71002, instruction)
 
   def test_add_position_mode(self):
     computer = IntCodeComputer()
     # 2 + 3 = 5
     computer.load([
-      InstructionSet.add(MODE_POS, MODE_POS),  # 0 instruction
+      InstructionSet.add(Modes.POS, Modes.POS),  # 0 instruction
       5,  # 1: arg 1
       6,  # 2: arg 2
       0,  # 3: arg 3,
@@ -260,7 +282,7 @@ class Examples(unittest.TestCase):
   def test_add_immediate_mode(self):
     computer = IntCodeComputer()
     # 2 + 3 = 5
-    computer.load([InstructionSet.add(MODE_IMM, MODE_IMM), 2, 3, 0, 99])
+    computer.load([InstructionSet.add(Modes.IMM, Modes.IMM), 2, 3, 0, 99])
     computer.run_program()
     self.assertEqual(5, computer.positions[0])
 
@@ -294,7 +316,7 @@ class Examples(unittest.TestCase):
     (op_code, modes) = computer.parse_instruction(1002)
 
     self.assertEqual(OP_MUL, op_code)
-    self.assertEqual([MODE_POS, MODE_IMM, MODE_POS], modes)
+    self.assertEqual([Modes.POS, Modes.IMM, Modes.POS], modes)
 
   def test_parse_mode_halt(self):
     computer = IntCodeComputer()
@@ -305,45 +327,48 @@ class Examples(unittest.TestCase):
 
   def test_equals(self):
     computer = IntCodeComputer()
-    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
+    computer.run_program([InstructionSet.eq(Modes.IMM, Modes.IMM), 1, 2, 0, 99])
     self.assertEqual(0, computer.positions[0])
-    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_IMM), 1, 1, 0, 99])
+    computer.run_program([InstructionSet.eq(Modes.IMM, Modes.IMM), 1, 1, 0, 99])
     self.assertEqual(1, computer.positions[0])
 
-    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_POS), 108, 0, 0, 99])
+    computer.run_program([InstructionSet.eq(Modes.IMM, Modes.POS), 108, 0, 0, 99])
     self.assertEqual(1, computer.positions[0])
 
-    computer.run_program([InstructionSet.eq(MODE_IMM, MODE_POS), 107, 0, 0, 99])
+    computer.run_program([InstructionSet.eq(Modes.IMM, Modes.POS), 107, 0, 0, 99])
     self.assertEqual(0, computer.positions[0])
 
   def test_less_than(self):
     computer = IntCodeComputer()
 
-    computer.run_program([InstructionSet.lt(MODE_IMM, MODE_IMM), 1, 2, 0, 99])
+    computer.run_program([InstructionSet.lt(Modes.IMM, Modes.IMM), 1, 2, 0, 99])
     self.assertEqual(1, computer.positions[0])
 
-    computer.run_program([InstructionSet.lt(MODE_IMM, MODE_IMM), 2, 2, 0, 99])
+    computer.run_program([InstructionSet.lt(Modes.IMM, Modes.IMM), 2, 2, 0, 99])
     self.assertEqual(0, computer.positions[0])
 
-    computer.run_program([InstructionSet.lt(MODE_IMM, MODE_IMM), 2, 0, 0, 99])
+    computer.run_program([InstructionSet.lt(Modes.IMM, Modes.IMM), 2, 0, 0, 99])
     self.assertEqual(0, computer.positions[0])
 
   def test_jump_if_true(self):
     computer = IntCodeComputer()
 
-    computer.run_program([InstructionSet.jump_if_true(MODE_IMM), 0, 4, 99, InstructionSet.op_output(MODE_POS), 1, 99])
+    computer.run_program([InstructionSet.jump_if_true(Modes.IMM), 0, 4, 99, InstructionSet.op_output(Modes.POS), 1, 99])
     self.assertEqual([], computer.output)
 
-    computer.run_program([InstructionSet.jump_if_true(MODE_IMM), 42, 4, 99, InstructionSet.op_output(MODE_POS), 1, 99])
+    computer.run_program(
+      [InstructionSet.jump_if_true(Modes.IMM), 42, 4, 99, InstructionSet.op_output(Modes.POS), 1, 99])
     self.assertEqual([42], computer.output)
 
   def test_jump_if_false(self):
     computer = IntCodeComputer()
 
-    computer.run_program([InstructionSet.jump_if_false(MODE_IMM), 42, 4, 99, InstructionSet.op_output(MODE_POS), 3, 99])
+    computer.run_program(
+      [InstructionSet.jump_if_false(Modes.IMM), 42, 4, 99, InstructionSet.op_output(Modes.POS), 3, 99])
     self.assertEqual([], computer.output)
 
-    computer.run_program([InstructionSet.jump_if_false(MODE_IMM), 0, 4, 99, InstructionSet.op_output(MODE_POS), 3, 99])
+    computer.run_program(
+      [InstructionSet.jump_if_false(Modes.IMM), 0, 4, 99, InstructionSet.op_output(Modes.POS), 3, 99])
     self.assertEqual([99], computer.output)
 
   def test_part1_example_negative(self):

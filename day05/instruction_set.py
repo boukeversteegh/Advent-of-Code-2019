@@ -35,3 +35,11 @@ class InstructionSet:
   @staticmethod
   def op_output(first_mode):
     return OpCodes.OP_OUT + 100 * first_mode
+
+  @staticmethod
+  def halt():
+    return OpCodes.OP_HALT
+
+  @staticmethod
+  def adjust_relative_base(first_mode):
+    return OpCodes.OP_ARB + 100 * first_mode
