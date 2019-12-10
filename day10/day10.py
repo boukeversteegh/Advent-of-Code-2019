@@ -47,9 +47,9 @@ with open('day10/input.txt') as fh:
 
         groups[group].append((ox, oy))
 
-    print(groups)
+    # print(groups)
 
-    print((cx, cy))
+    # print((cx, cy))
     # for y, row in enumerate(rows):
     #   for (x, pos) in enumerate(row):
     #     if (x, y) in asteroids:
@@ -64,12 +64,55 @@ with open('day10/input.txt') as fh:
     #   print('')
     # print('-----')
 
-    print('Group/asteroid count: %s' % len(groups))
+    # print('Group/asteroid count: %s' % len(groups))
     candidate_group_counts.append([(cx, cy), len(groups)])
+    candidate_groups[(cx, cy)] = groups
 
-  print(candidate_group_counts)
+  # print(candidate_group_counts)
 
-  print(max(candidate_group_counts, key=lambda entry: entry[1]))
+  # Part 2
+  (x, y), count = max(candidate_group_counts, key=lambda entry: entry[1])
+  print((x, y), count)
+
+  groups = candidate_groups[x, y]
+
+
+  def dist(a, b):
+    ax, ay = a
+    bx, by = b
+    return math.sqrt(pow(ax - bx, 2) + pow(ay - by, 2))
+
+
+  def angle(a, b):
+    ax, ay = a
+    bx, by = b
+    dx = ax - bx
+    dy = ay - by
+    return math.atan2(dy, dx)
+
+
+  groups = [sorted(group, key=lambda group: dist(group, (x, y))) for group in groups.values()]
+
+  groups = sorted(groups, key=lambda group: angle((x, y), group[0]))
+
+  count = 0
+
+  while True:
+    for group in groups:
+      if group == []:
+        continue
+      print(group)
+      nearest = group.pop(0)
+
+      count += 1
+      print(count, nearest)
+
+      if count == 200:
+        print("DONE", nearest)
+        break
+
+      # 801
+
 
   # 264 BAD
   # 265 BAD
