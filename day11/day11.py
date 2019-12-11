@@ -23,6 +23,7 @@ class HullPainting:
     xrange = [None, None]
     yrange = (None, None)
 
+    panel_colors[(0, 0)] = 1
     while True:
 
       color = panel_colors[pos]
@@ -67,6 +68,17 @@ class HullPainting:
         break
 
     print(len(panel_colors.values()))
+
+    # xs = [x for (x,y) in panel_colors.keys()]
+    # xrange = min(xs), max(xs)
+    # yrange = min(ys), may(xs)
+
+    print("___________________________")
+    for y in range(-100, 100):
+      for x in range(-100, 100):
+        print('#' if panel_colors[(x, y)] == 1 else ' ', end='')
+
+      print('')
 
     pass
 
