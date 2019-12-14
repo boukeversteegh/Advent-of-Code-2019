@@ -1,4 +1,6 @@
+import os
 from collections import defaultdict
+from time import sleep
 
 from day09.day09 import IntCodeComputerDay9
 
@@ -37,6 +39,7 @@ class ArcadeCabinet:
 
   def draw(self, draw=True):
     if draw:
+      os.system('clear')
       print('Score: %s' % self.score)
     w, h = self.size
     self.blocks = 0
@@ -85,7 +88,7 @@ class ArcadeCabinet:
         else:
           self.screen[(x, y)] = t
 
-      self.draw(draw=False)
+      self.draw(draw=True)
 
       if computer.waiting_for_input:
         # AI
@@ -112,7 +115,7 @@ class ArcadeCabinet:
         else:
           # print("HOLD")
           computer.input(0)
-        # sleep(0.3)
+        sleep(0.2)
         continue
 
       else:
