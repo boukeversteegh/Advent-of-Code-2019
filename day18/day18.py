@@ -1,12 +1,12 @@
-import collections
 import os
+from heapq import heappush, heappop
 
 grid = {}
 player = None
 keys = {}
 doors = {}
 
-with open('day18/input.txt') as fh:
+with open('day18/exampleX.txt') as fh:
   lines = [line.strip() for line in fh.readlines()]
   for y, line in enumerate(lines):
     for x, c in enumerate(line):
@@ -75,7 +75,7 @@ def get_min_steps_left(position, found_keys):
 
 
 start_min_steps_left = get_min_steps_left(player, [])
-to_visit = collections.deque()
+to_visit = []
 to_visit.append((
   0 + start_min_steps_left,
   0,
@@ -98,16 +98,13 @@ best_nr_keys = 0
 
 i = 0
 
-break_condition = 'a'
+debug_mode = 'a'
 while len(to_visit):
   further = False
   more_steps = False
   more_keys = False
 
-  # for _v in range(0, min(10, len(to_visit) - 1)):
-  #   print(' -', to_visit[_v])
-
-  min_total_steps, steps, min_steps_left, (x, y), found_keys, path = to_visit.popleft()
+  min_total_steps, steps, min_steps_left, (x, y), found_keys, path = heappop(to_visit)
 
   visited_key = ((x, y), tuple(sorted(found_keys)))
   if visited_key not in visited or visited[visited_key] < steps:
@@ -159,7 +156,7 @@ while len(to_visit):
         n_steps = (steps + 1)
         n_visited_key = (nx, ny), tuple(sorted(n_found_keys))
         if n_visited_key not in visited or n_steps < visited[n_visited_key]:
-          to_visit.append((
+          heappush(to_visit, (
             n_steps + dir_min_steps_left,
             n_steps,
             dir_min_steps_left,
@@ -169,17 +166,17 @@ while len(to_visit):
           ))
 
   breaking = False
-  if break_condition == 'a':
+  if debug_mode == 'a':
     breaking = True
-  if break_condition == 'k':
+  if debug_mode == 'k':
     breaking = more_keys
-  if break_condition == 's':
+  if debug_mode == 's':
     breaking = more_steps
-  if break_condition == 'd':
+  if debug_mode == 'd':
     breaking = near_open_door
-  if break_condition == 'g':
+  if debug_mode == 'g':
     breaking = reached_goal
-  if break_condition == 'e':
+  if debug_mode == 'e':
     breaking = False
 
   if breaking:
@@ -210,13 +207,23 @@ while len(to_visit):
         print(o, end='')
       print('')
 
+    print('Evaluated #%s:' % (i + 1,))
+    # print(' - [%s,%s] %s / %s %s' % (steps + min_steps_left, steps, min_steps_left, (x, y), found_keys, '%s positions left' % len(to_visit))
+    print('   [%s,%s] %s / %s %s' % (x, y, steps, min_total_steps, found_keys))
     print('')
-    print(steps + min_steps_left, steps, min_steps_left, (x, y), found_keys, '%s positions left' % len(to_visit))
-    print('')
-    new_break_condition = input(
-      'Wait when? [a=always wait, k=next key, s=more steps, d=near open door, g=goal, e=end]: ').strip()
-    if len(new_break_condition) > 0:
-      break_condition = new_break_condition
+
+    new_debug_mode = None
+    while new_debug_mode == None:
+      new_debug_mode = input(
+        'Debug? [a=always wait, k=next key, s=more steps, d=near open door, g=goal, e=end]: ').strip()
+      if new_debug_mode == 'p':
+        print("Future options:")
+        for _v in range(0, min(4, len(to_visit) - 1) + 1):
+          v_min_total_steps, v_steps, v_min_steps_left, (v_x, v_y), v_found_keys, _ = to_visit[_v]
+          print(' - [%s,%s] %s / %s %s' % (v_x, v_y, v_steps, v_min_total_steps, v_found_keys))
+        new_debug_mode = None
+      elif len(new_debug_mode) > 0:
+        debug_mode = new_debug_mode
     print('')
   i += 1
 
