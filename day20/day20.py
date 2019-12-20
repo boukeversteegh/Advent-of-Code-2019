@@ -1,4 +1,7 @@
 import os
+import string
+import sys
+from collections import deque
 from time import sleep
 
 walkable_tiles = set()
@@ -9,7 +12,7 @@ portal_positions = {}
 input_file = 'day20/input.txt'
 portal_letters = {}
 
-letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+letters = string.ascii_letters
 horizontal_wall_size = None
 wall_width = None
 
@@ -23,27 +26,13 @@ dirs = [
 start = None
 end = None
 
-
-def print_maze(x, y, path):
-  for _y, row in enumerate(grid):
-    for _x, tile in enumerate(row.rstrip('\n')):
-      if (_x, _y) == (x, y):
-        o = '\033[96m%s\033[0m' % '@'
-      else:
-        if (_x, _y) in path:
-          o = '\033[42m \033[0m'
-        elif tile == '#':
-          o = '\033[47m \033[0m'
-        elif tile == '.':
-          o = '.'
-        else:
-          o = tile
-
-      print(o, end='')
-    print('')
+outer_portals = set()
+inner_portals = set()
 
 with open(input_file) as fh:
   grid = [line for line in fh.readlines()]
+  h = len([_ for _ in grid if len(_.strip()) > 0])
+  w = max([len(l.strip()) for l in grid])
 
   for y, row in enumerate(grid):
     for x, tile in enumerate(row):
@@ -54,10 +43,11 @@ with open(input_file) as fh:
           px, py = x + dx, y + dy
           px2, py2 = x + dx * 2, y + dy * 2
           p = (px, py)
+          p2 = px2, py2
 
           print(p)
 
-          if px2 in range(0, len(row)) and py2 in range(0, len(grid)) and grid[py][px] in letters:
+          if px2 in range(0, w) and py2 in range(0, h) and grid[py][px] in letters:
             if dx < 0 or dy < 0:
               name = grid[py2][px2] + grid[py][px]
             else:
@@ -68,6 +58,13 @@ with open(input_file) as fh:
             if name == 'ZZ':
               end = x, y
 
+            if min(w - px, px, h - py, py) in [1, 2]:
+              outer_portals.add(p)
+              outer_portals.add(p2)
+            else:
+              inner_portals.add(p)
+              inner_portals.add(p2)
+
             if name in portal_positions:
               other_portal_entrance, other_portal_tile = portal_positions[name]
               portals[p] = other_portal_tile
@@ -76,6 +73,33 @@ with open(input_file) as fh:
               portal_positions[name] = (p, (x, y))
 
 print(portal_positions, portals)
+
+
+def print_maze(x, y, z, path):
+  path2d_current_level = set([(_x, _y) for _x, _y, _z in path if _z == z])
+  path2d_other_level = set([(_x, _y) for _x, _y, _z in path if _z != z])
+  for _y, row in enumerate(grid):
+    for _x, tile in enumerate(row.rstrip('\n')):
+      if (_x, _y) == (x, y):
+        o = '\033[96m%s\033[0m' % '@'
+      else:
+        if (_x, _y) in path2d_current_level:
+          o = '\033[102m \033[0m'
+        elif (_x, _y) in path2d_other_level:
+          o = '\033[42m \033[0m'
+        elif tile == '#':
+          o = '\033[47m \033[0m'
+        elif tile == '.':
+          o = '.'
+        elif (_x, _y) in outer_portals:
+          o = '\033[95m%s\033[0m' % tile
+        elif (_x, _y) in inner_portals:
+          o = '\033[91m%s\033[0m' % tile
+        else:
+          o = tile
+      sys.stdout.buffer.write(str.encode(o))
+    sys.stdout.buffer.write(b'\n')
+  sys.stdout.buffer.flush()
 
 
 def part1():
@@ -117,33 +141,36 @@ def part1():
 # 637 too high
 # 636 too high
 
+if start == None:
+  raise Exception("No start found")
+
+if end == None:
+  raise Exception("No end found")
+
+
 def part2():
-  check_tiles = [
+  check_tiles = deque([
     [start + (0,)]
-  ]
+  ])
+  checked_tiles = {}
   i = 0
   while check_tiles:
-    path = check_tiles.pop(0)
+    path = check_tiles.popleft()
     x, y, z = path[-1]
 
-    if i % 1000 == 0:
+    if i % 100000 == 0:
       os.system('clear')
-      print('#%s' % i)
-      #   print_maze(x, y, [(x, y) for x, y, z in path])
+      print('#%s/%s' % (i, len(check_tiles)))
       print("Level: %s" % z)
-    #   print(path)
-    # sleep(0.1)
+      print_maze(x, y, z, checked_tiles.keys())
 
     for dx, dy in dirs:
       nx, ny = x + dx, y + dy
-      n = (nx, ny)
+      nz = z
 
       is_portal_start = (nx, ny) in portals
-      is_outer_portal = is_portal_start and \
-                        (nx == 2 or nx > len(grid[2]) - 2 or
-                         ny == 2 or ny > len(grid[2]) - 2)
-
-      is_inner_portal = is_portal_start and not is_outer_portal
+      is_outer_portal = is_portal_start and (nx, ny) in outer_portals
+      is_inner_portal = is_portal_start and (nx, ny) in inner_portals
 
       at_top = z == 0
 
@@ -151,28 +178,29 @@ def part2():
         continue
 
       if is_portal_start:
-        tx, ty = portals[nx, ny]
+        nx, ny = portals[nx, ny]
 
         if is_outer_portal and not at_top:
-          tz = z - 1
+          nz = z - 1
         if is_inner_portal:
-          tz = z + 1
+          nz = z + 1
 
-        if (tx, ty, tz) not in path:
-          check_tiles.append(path + [(tx, ty, tz)])
+      if (nx, ny) in walkable_tiles and (nx, ny, nz) not in checked_tiles:
+        # Essential! Keep as 'checked' as soon as possible!
+        checked_tiles[(nx, ny, nz)] = len(path) + 1
 
-      else:
-        if (nx, ny) in walkable_tiles and (nx, ny, z) not in path:
-          check_tiles.append(path + [(nx, ny, z)])
+        check_tiles.append(path + [(nx, ny, nz)])
 
     if end == (x, y) and z == 0:
-      print_maze(x, y, [(x, y) for x, y, z in path])
+      print_maze(x, y, z, path)
       print("Reached ZZ")
       print(path)
       print("Path length, excluding start: ", len(path) - 1)
 
       break
 
+    if i % 1000 == 0:
+      print('#%s/%s\r' % (i, len(check_tiles)), end='')
     i += 1
 
 
