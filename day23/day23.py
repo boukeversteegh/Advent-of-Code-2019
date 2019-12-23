@@ -1,5 +1,3 @@
-import sys
-
 from day09.day09 import IntCodeComputerDay9
 
 
@@ -22,6 +20,7 @@ class NIC:
     self.input_buffer = []
     self.output_buffer = []
     self.nics = []
+    self.NAT = None
 
   def output_handler(self, value):
     self.output_buffer.append(value)
@@ -34,13 +33,13 @@ class NIC:
       y = self.output_buffer.pop(0)
 
       if dest == 255:
+        self.NAT = (x, y)
         print("[%s] Sending %s, %s" % (self.address, x, y))
-        sys.exit(0)
+        return
 
       self.nics[dest].receive(x, y)
 
       print("[%s] Sending %s, %s to %s" % (self.address, x, y, dest))
-      self.output_buffer.clear()
 
   def boot(self, nics):
     self.nics = nics
@@ -50,6 +49,7 @@ class NIC:
     self.computer.run_program()
 
   def go(self):
+    self.NAT = None
     self.computer.execution_loop()
 
   def receive(self, x, y):
@@ -60,21 +60,28 @@ class NIC:
 def part1():
   program = [int(value) for value in open('day23/input.txt').readlines()[0].strip().split(",")]
   nics = [NIC(i, program) for i in range(0, 50)]
-  #
-  # for nic in nics:
-  # def boot_nic():
-  #   print("Booting nic: %s " % nic.address)
-  #   nic.boot(nics)
-  #
-  # Thread(target=boot_nic).start()
 
   for nic in nics:
     nic.boot(nics)
 
-  for nic in nics:
-    nic.go()
-    if nic.computer.waiting_for_input:
-      nic.computer.input(-1)
+  NAT = None
+  history = set()
+  while True:
 
+    for nic in nics:
+      if nic.NAT:
+        NAT = nic.NAT
+
+      nic.go()
+
+      if nic.computer.waiting_for_input:
+        nic.computer.input(-1)
+
+    if NAT in history:
+      print("Repeated value found: ", NAT)
+      break
+    if NAT:
+      history.add(NAT)
+      nics[0].receive(*NAT)
 
 part1()
